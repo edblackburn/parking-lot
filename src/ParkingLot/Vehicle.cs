@@ -25,15 +25,29 @@ namespace ParkingLot {
 
 		private readonly Queue<object> _events = new Queue<object>();
 		private LicencePlate _licencePlate = LicencePlate.Unassigned;
+		private readonly List<(long start, long finish)> _bookings = new List<(long start, long finish)>();
 
-		public void Book(LicencePlate licencePlate, string location, int start, Product product) {
+		public void Book(in LicencePlate licencePlate, in string location, in long start, in Product product) {
 			var finish = product(start);
-
 			Apply(new VehicleBooked(
 				licencePlate: licencePlate.ToString(),
 				location: location,
 				start: start,
 				finish: finish));
+		}
+
+		public void Inspect(
+			InspectionId inspectionId,
+			DateTimeOffset when,
+			LicencePlate licencePlate,
+			string location) {
+			var unixTimeSeconds = when.ToUnixTimeSeconds();
+			var inRange = _bookings.Any(booking =>
+				unixTimeSeconds >= booking.start && unixTimeSeconds <= booking.finish);
+
+			if (!inRange) {
+				Apply(new VehicleUnbooked(inspectionId.ToString(), licencePlate.ToString(), location));
+			}
 		}
 
 		private void Apply(object @event) {
@@ -53,6 +67,7 @@ namespace ParkingLot {
 					_licencePlate = LicencePlate.Create(registered.LicencePlate);
 					break;
 				case VehicleBooked booked:
+					_bookings.Add((booked.Start, booked.Finish));
 					break;
 			}
 		}
@@ -63,6 +78,6 @@ namespace ParkingLot {
 			while (_events.Any()) {
 				yield return _events.Dequeue();
 			}
-		}	
+		}
 	}
 }

@@ -19,8 +19,4 @@
       <ProjectReference Include="..\ParkingLot\ParkingLot.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Compile Remove="When_vehicle_is_inspected.cs" />
-    </ItemGroup>
-
 </Project>

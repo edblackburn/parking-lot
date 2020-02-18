@@ -1,8 +1,7 @@
 using System;
 using System.Linq;
 
-namespace ParkingLot
-{
+namespace ParkingLot {
 	public class LicencePlate {
 		private readonly string _licencePlate;
 
