@@ -1,5 +1,15 @@
-name: GitHub Actions Demo
-on: [push]
-steps:
-- run: dotnet test -t ./src
+jobs:
+  build:
+ 
+    runs-on: ubuntu-latest
+ 
+    steps:
+    - uses: actions/checkout@v2
+ 
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v1.7.2
+      with:
+        dotnet-version: 5.0.x 
+    - name: Test
+      run: dotnet test -t ./src
 
