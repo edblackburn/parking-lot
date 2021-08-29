@@ -15,5 +15,5 @@ jobs:
       with:
         dotnet-version: 5.0.x 
     - name: Test
-      run: dotnet test -t ./src/ParkingLot.Tests/ParkingLot.Tests.csproj
+      run: dotnet test -t -v detailed ./src/ParkingLot.Tests/ParkingLot.Tests.csproj
 
