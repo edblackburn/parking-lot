@@ -3,81 +3,69 @@ using System.Collections.Generic;
 using System.Linq;
 
 namespace ParkingLot {
-	public class Vehicle {
-		public static Vehicle FromStream(LicencePlate licencePlate, params object[] events) {
-			var vehicle = new Vehicle();
+	public static class Vehicle {
+		public static readonly Decider<VehicleState, VehicleCommand, VehicleEvent> Decider =
+			new Decider<VehicleState, VehicleCommand, VehicleEvent>(
+				Initial: VehicleState.Initial,
+				Decide: Decide,
+				Evolve: Evolve);
 
-			var stream = events ?? Array.Empty<object>();
+		public static VehicleState Evolve(VehicleState state, VehicleEvent @event) =>
+			@event switch {
+				VehicleRegistered e => state with { Registration = RegistrationStatus.Registered(e.LicencePlate) },
+				VehicleBooked e => state with {
+					Bookings = state.Bookings.Add(
+						new Booking(e.Location, new Period(e.Start, e.Finish)))
+				},
+				InspectionFailed _ => state,
+				null => throw new ArgumentNullException(nameof(@event)),
+				_ => throw new ArgumentOutOfRangeException(
+					nameof(@event),
+					@event,
+					$"Unhandled {nameof(VehicleEvent)} subtype '{@event.GetType().Name}' — add a case to {nameof(Evolve)}.")
+			};
 
-			if (stream.Any()) {
-				foreach (var @event in stream) {
-					vehicle.When(@event);
-				}
-			} else {
-				vehicle.Apply(new VehicleRegistered(licencePlate.ToString()));
-			}
+		public static IReadOnlyList<VehicleEvent> Decide(VehicleState state, VehicleCommand command) =>
+			command switch {
+				Book c => DecideBook(state, c),
+				Inspect c => DecideInspect(state, c),
+				null => throw new ArgumentNullException(nameof(command)),
+				_ => throw new ArgumentOutOfRangeException(
+					nameof(command),
+					command,
+					$"Unhandled {nameof(VehicleCommand)} subtype '{command.GetType().Name}' — add a case to {nameof(Decide)}.")
+			};
 
-			return vehicle;
+		private static IReadOnlyList<VehicleEvent> DecideBook(VehicleState state, Book command) {
+			var finish = command.Product(command.Start);
+			var booked = new VehicleBooked(
+				LicencePlate: command.LicencePlate.ToString(),
+				Location: command.Location,
+				Start: command.Start,
+				Finish: finish);
+
+			return state.Registration.IsRegistered
+				? new VehicleEvent[] { booked }
+				: new VehicleEvent[] { new VehicleRegistered(command.LicencePlate.ToString()), booked };
 		}
 
-		private Vehicle() {
-		}
+		private static IReadOnlyList<VehicleEvent> DecideInspect(VehicleState state, Inspect command) {
+			var registeredToInspectedVehicle = state.Registration.Match(
+				onUnregistered: () => false,
+				onRegistered: plate => plate == command.LicencePlate.ToString());
 
-		private readonly Queue<object> _events = new Queue<object>();
-		private LicencePlate _licencePlate = LicencePlate.Unassigned;
-		private readonly List<(long start, long finish)> _bookings = new List<(long start, long finish)>();
+			var when = command.When.ToUnixTimeSeconds();
+			var covered = registeredToInspectedVehicle
+				&& state.Bookings.Any(booking => booking.Covers(command.Location, when));
 
-		public void Book(in LicencePlate licencePlate, in string location, in long start, in Product product) {
-			var finish = product(start);
-			Apply(new VehicleBooked(
-				licencePlate: licencePlate.ToString(),
-				location: location,
-				start: start,
-				finish: finish));
-		}
-
-		public void Inspect(
-			InspectionId inspectionId,
-			DateTimeOffset when,
-			LicencePlate licencePlate,
-			string location) {
-			var unixTimeSeconds = when.ToUnixTimeSeconds();
-			var inRange = _bookings.Any(booking =>
-				unixTimeSeconds >= booking.start && unixTimeSeconds <= booking.finish);
-
-			if (!inRange) {
-				Apply(new VehicleUnbooked(inspectionId.ToString(), licencePlate.ToString(), location));
-			}
-		}
-
-		private void Apply(object @event) {
-			When(@event);
-			_events.Enqueue(@event);
-			Version++;
-		}
-
-		/// <summary>
-		/// Assign state
-		/// </summary>
-		/// <param name="event"></param>
-		private void When(object @event) {
-			//NOTE: we never, ever, ever throw in here
-			switch (@event) {
-				case VehicleRegistered registered:
-					_licencePlate = LicencePlate.Create(registered.LicencePlate);
-					break;
-				case VehicleBooked booked:
-					_bookings.Add((booked.Start, booked.Finish));
-					break;
-			}
-		}
-
-		public int Version { get; private set; } = -1;
-
-		public IEnumerable<object> TakeChanges() {
-			while (_events.Any()) {
-				yield return _events.Dequeue();
-			}
+			return covered
+				? Array.Empty<VehicleEvent>()
+				: new VehicleEvent[] {
+					new InspectionFailed(
+						InspectionId: command.InspectionId.ToString(),
+						LicencePlate: command.LicencePlate.ToString(),
+						Location: command.Location)
+				};
 		}
 	}
 }

@@ -1,12 +1,11 @@
-namespace ParkingLot
-{
-	public class InspectionId {
-		private readonly string _licencePlate;
+namespace ParkingLot {
+	public sealed record InspectionId {
+		private readonly string _inspectionId;
 
 		public static InspectionId Create(string inspectionId) => new InspectionId(inspectionId);
 
-		private InspectionId(string licencePlate) => _licencePlate = licencePlate;
+		private InspectionId(string inspectionId) => _inspectionId = inspectionId;
 
-		public override string ToString() => _licencePlate;
+		public override string ToString() => _inspectionId;
 	}
 }

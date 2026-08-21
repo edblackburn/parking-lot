@@ -1,52 +1,48 @@
 using System;
-using System.Linq;
-using Xunit;
-using Xunit.Asserts.Compare;
+using System.Threading.Tasks;
+using TUnit.Assertions;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace ParkingLot.Tests {
 	public class When_vehicle_is_booked {
-		[Fact]
-		public void It_should_book_registered_vehicle() {
-			var licencePlate = LicencePlate.Create("123-123");
-			var registeredVehicle = new VehicleRegistered("123-123");
+		[Test]
+		public async Task it_should_book_registered_vehicle() {
+			var licencePlate = LicencePlate.Create("123-123").OkValue;
 
-			var vehicle = Vehicle.FromStream(
-				licencePlate: licencePlate,
-				events: registeredVehicle);
+			var events = VehicleDeciderScenario
+				.Given(new VehicleRegistered("123-123"))
+				.When(new Book(licencePlate, "Kernow", 1579132800, EndOf.Week));
 
-			vehicle.Book(licencePlate, "Kernow", 1579132800, EndOf.Week);
-
-			var expected = new object[] {
+			var expected = new VehicleEvent[] {
 				new VehicleBooked(
-					licencePlate: "123-123",
-					location: "Kernow",
-					start: new DateTimeOffset(new DateTime(2020, 01, 16)).ToUnixTimeSeconds(),
-					finish: new DateTimeOffset(new DateTime(2020, 01, 16)).AddDays(7).AddSeconds(-1).ToUnixTimeSeconds()
-				)
+					LicencePlate: "123-123",
+					Location: "Kernow",
+					Start: new DateTimeOffset(new DateTime(2020, 01, 16)).ToUnixTimeSeconds(),
+					Finish: new DateTimeOffset(new DateTime(2020, 01, 16)).AddDays(7).ToUnixTimeSeconds())
 			};
 
-			DeepAssert.Equal(expected, vehicle.TakeChanges().ToArray());
-			Assert.Equal(0, vehicle.Version);
+			await Assert.That(events).IsEquivalentTo(expected);
 		}
 
-		[Fact]
-		public void It_should_book_unregistered_vehicle() {
-			var vehicle = Vehicle.FromStream(LicencePlate.Create("123-123"));
+		[Test]
+		public async Task it_should_book_unregistered_vehicle() {
+			var licencePlate = LicencePlate.Create("123-123").OkValue;
 
-			vehicle.Book(LicencePlate.Create("123-123"), "Kernow", 1579132800, EndOf.Day);
+			var events = VehicleDeciderScenario
+				.Given()
+				.When(new Book(licencePlate, "Kernow", 1579132800, EndOf.Day));
 
-			var expected = new object[] {
-				new VehicleRegistered(licencePlate: "123-123"),
+			var expected = new VehicleEvent[] {
+				new VehicleRegistered(LicencePlate: "123-123"),
 				new VehicleBooked(
-					licencePlate: "123-123",
-					location: "Kernow",
-					start: new DateTimeOffset(new DateTime(2020, 01, 16)).ToUnixTimeSeconds(),
-					finish: new DateTimeOffset(new DateTime(2020, 01, 17)).AddSeconds(-1).ToUnixTimeSeconds()
-				)
+					LicencePlate: "123-123",
+					Location: "Kernow",
+					Start: new DateTimeOffset(new DateTime(2020, 01, 16)).ToUnixTimeSeconds(),
+					Finish: new DateTimeOffset(new DateTime(2020, 01, 17)).ToUnixTimeSeconds())
 			};
 
-			DeepAssert.Equal(expected, vehicle.TakeChanges().ToArray());
-			Assert.Equal(1, vehicle.Version);
+			await Assert.That(events).IsEquivalentTo(expected);
 		}
 	}
 }

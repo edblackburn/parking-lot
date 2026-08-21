@@ -1,22 +1,20 @@
 using System;
 
 namespace ParkingLot {
-	
-	public delegate long Product(in long start);
-	
+
+	public delegate long Product(long start);
+
 	public static class EndOf {
-		public static long Day(in long start) {
+		public static long Day(long start) {
 			var time = DateTimeOffset.FromUnixTimeSeconds(start);
-			var day = new DateTimeOffset(time.Date.AddDays(1));
-			var until = day.AddSeconds(-1);
-			return until.ToUnixTimeSeconds();
+			var nextDay = new DateTimeOffset(time.Date.AddDays(1));
+			return nextDay.ToUnixTimeSeconds();
 		}
 
-		public static long Week(in long start) {
+		public static long Week(long start) {
 			var time = DateTimeOffset.FromUnixTimeSeconds(start);
-			var week = new DateTimeOffset(time.Date.AddDays(7));
-			var until = week.AddSeconds(-1);
-			return until.ToUnixTimeSeconds();
+			var nextWeek = new DateTimeOffset(time.Date.AddDays(7));
+			return nextWeek.ToUnixTimeSeconds();
 		}
 	}
 }

@@ -1,13 +1,12 @@
-using System;
 using System.Linq;
 
 namespace ParkingLot {
-	public class LicencePlate {
+	public sealed record LicencePlateError(string Message);
+
+	public sealed record LicencePlate {
 		private readonly string _licencePlate;
 
-		public static readonly LicencePlate Unassigned = new LicencePlate("unassigned");
-
-		public static LicencePlate Create(string licencePlate) {
+		public static Result<LicencePlate, LicencePlateError> Create(string licencePlate) {
 			var plate = licencePlate
 				.Trim()
 				.Trim('-')
@@ -16,10 +15,11 @@ namespace ParkingLot {
 				.ToArray();
 
 			if (!plate.Any() || 1 == plate.Length) {
-				throw new ArgumentException($"Invalid licence plate '{licencePlate}'");
+				return Result<LicencePlate, LicencePlateError>.Error(
+					new LicencePlateError($"Invalid licence plate '{licencePlate}'"));
 			}
 
-			return new LicencePlate(new string(plate));
+			return Result<LicencePlate, LicencePlateError>.Ok(new LicencePlate(new string(plate)));
 		}
 
 		private LicencePlate(string licencePlate) => _licencePlate = licencePlate;
