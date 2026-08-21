@@ -1,2 +1,4 @@
+min_version = "2026.7.16"
+
 [tools]
 dotnet = "10.0.400"
